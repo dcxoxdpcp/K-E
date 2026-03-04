@@ -37,7 +37,6 @@ brain/
 # Legacy and root scripts (now in js/)
 productivityService.js
 storageProvider.js
-styles.css
 syncService.js
 uiUtils.js
 "theme.js, modal.js, app.js) y el index.html.txt"
