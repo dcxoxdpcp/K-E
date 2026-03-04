@@ -22,7 +22,7 @@ export const SyncService = {
         this.client = window.supabase.createClient(this.SUPABASE_URL, this.SUPABASE_KEY);
         this.enabled = true;
 
-        const data = await this.pull();
+        const { data } = await this.pull();
         this.isInitialLoad = false;
         return data;
     },
@@ -42,7 +42,7 @@ export const SyncService = {
             return { success: false };
         }
 
-        const result = data[0];
+        const result = (Array.isArray(data) ? data[0] : data) || {};
         if (result.success) {
             this.lastUpdatedAt = result.current_updated_at;
             return { success: true };
@@ -58,22 +58,22 @@ export const SyncService = {
     },
 
     async pull() {
-        if (!this.enabled) return null;
+        if (!this.enabled) return { data: null };
         const { data, error } = await this.client
             .from('app_state')
             .select('state, updated_at, last_author_id')
             .eq('project_id', this.PROJECT_ID)
-            .single();
+            .maybeSingle();
 
-        if (error && error.code !== 'PGRST116') {
+        if (error) {
             console.error("☁️ SyncService Pull Error:", error);
-            return null;
+            return { data: null };
         }
 
         if (data) {
             this.lastUpdatedAt = data.updated_at;
         }
-        return data;
+        return { data: data?.state };
     },
 
     trackPresence(userData, onPresenceChange) {
@@ -84,23 +84,15 @@ export const SyncService = {
         });
 
         this.presenceChannel
-            .on('presence', { event: 'sync' }, () => {
-                const newState = this.presenceChannel.presenceState();
-                onPresenceChange(newState);
-            })
-            .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-                onPresenceChange(this.presenceChannel.presenceState());
-            })
-            .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-                onPresenceChange(this.presenceChannel.presenceState());
-            })
+            .on('presence', { event: 'sync' }, () => onPresenceChange(this.presenceChannel.presenceState()))
+            .on('presence', { event: 'join' }, () => onPresenceChange(this.presenceChannel.presenceState()))
+            .on('presence', { event: 'leave' }, () => onPresenceChange(this.presenceChannel.presenceState()))
             .subscribe(async (status) => {
                 if (status === 'SUBSCRIBED') {
                     await this.presenceChannel.track({
                         id: userData.id,
                         name: userData.name,
                         avatar: userData.avatar,
-                        online_at: new Date().toISOString(),
                     });
                 }
             });
@@ -123,7 +115,7 @@ export const SyncService = {
                 filter: `project_id=eq.${this.PROJECT_ID}`
             }, payload => {
                 this.lastUpdatedAt = payload.new.updated_at;
-                this.updateCallbacks.forEach(cb => cb(payload.new.state, payload.new.last_author_id));
+                this.updateCallbacks.forEach(cb => cb(payload.new.state));
             })
             .subscribe();
     }
