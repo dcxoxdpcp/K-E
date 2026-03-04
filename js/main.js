@@ -249,7 +249,7 @@ const App = {
                     const cols = board.columns;
                     const moved = cols.splice(evt.oldIndex, 1)[0];
                     cols.splice(evt.newIndex, 0, moved);
-                    this.save(false);
+                    this.save(true);
                 }
             });
             this.sortableInstances.push(colSortable);
@@ -298,7 +298,7 @@ const App = {
                     to.closest('[data-column-id]')?.querySelector('.task-count') &&
                         (to.closest('[data-column-id]').querySelector('.task-count').textContent = toCol?.tasks.length || 0);
 
-                    this.save(false);
+                    this.save(true);
                 }
             });
             this.sortableInstances.push(taskSortable);
@@ -323,7 +323,7 @@ const App = {
                     const task = matrix.quadrants[fromQ].find(t => t.id === taskId);
                     matrix.quadrants[fromQ] = matrix.quadrants[fromQ].filter(t => t.id !== taskId);
                     matrix.quadrants[toQ].splice(evt.newIndex, 0, task);
-                    this.save(false);
+                    this.save(true);
                 }
             });
             this.sortableInstances.push(s);
