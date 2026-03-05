@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="ocean">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eisenhower Agile - Sistema de Productividad</title>
+    <meta name="description"
+        content="Sistema de gestión ágil con Tableros Kanban y Matrices Eisenhower para maximizar tu productividad.">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- Dependencias -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Punto de entrada de la App (ES Modules) -->
+    <script type="module" src="js/main.js"></script>
+</head>
+
+<body class="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] transition-colors duration-300 font-[Inter]">
+
+    <!-- ========================================================= -->
+    <!-- PANTALLA DE ERROR (Crash Screen) -->
+    <!-- ========================================================= -->
+    <div id="crash-screen"
+        class="fixed inset-0 bg-white z-[9999] flex flex-col items-center justify-center p-6 text-center hidden">
+        <div class="max-w-md space-y-4">
+            <div class="text-6xl">💥</div>
+            <h1 class="text-2xl font-bold text-red-600">Error de Inicialización</h1>
+            <p id="crash-message" class="text-gray-600 text-sm bg-red-50 p-3 rounded-xl font-mono"></p>
+            <div class="flex gap-3 justify-center">
+                <button onclick="location.reload()" class="btn-action">🔄 Reintentar</button>
+                <button onclick="localStorage.clear(); location.reload()" class="btn-action btn-secondary">🗑️ Limpiar y
+                    Reiniciar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- PANTALLA DE LOGIN -->
+    <!-- ========================================================= -->
+    <div id="login-container" class="fixed inset-0 z-[100] flex flex-col items-center justify-center p-6"
+        style="background: linear-gradient(135deg, #f0f4ff 0%, #e8f0fe 50%, #f3e8ff 100%);">
+
+        <div class="text-center mb-10">
+            <h1
+                class="text-5xl font-extrabold mb-3 text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-violet-600">
+                Eisenhower Agile
+            </h1>
+            <p class="text-gray-500 text-lg">Selecciona tu perfil para continuar</p>
+        </div>
+
+        <div id="user-select-grid" class="grid grid-cols-2 md:grid-cols-4 gap-5 max-w-3xl w-full">
+            <!-- Tarjetas de usuario generadas por JS -->
+        </div>
+
+        <p class="mt-10 text-xs text-gray-400">Sistema de Productividad Ágil · v3.1</p>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- APLICACIÓN PRINCIPAL -->
+    <!-- ========================================================= -->
+    <div id="app" class="h-screen w-screen flex flex-col hidden overflow-hidden">
+
+        <!-- HEADER -->
+        <header
+            class="bg-[var(--color-card-bg)] shadow-sm px-6 py-3 flex justify-between items-center z-20 flex-shrink-0 border-b border-[var(--color-border)]">
+            <div class="flex items-center gap-4">
+                <h1
+                    class="text-xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-violet-600">
+                    Eisenhower<span class="text-[var(--color-text-primary)]"> Agile</span>
+                </h1>
+                <!-- Usuario actual -->
+                <div id="current-user-display"></div>
+                <!-- Usuarios online -->
+                <div id="online-users-container" class="flex -space-x-2 ml-2"></div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <!-- Selector de Tema -->
+                <div class="relative">
+                    <button id="theme-selector-btn"
+                        class="p-2 hover:bg-[var(--color-bg-secondary)] rounded-xl transition-colors text-lg"
+                        title="Cambiar tema">
+                        🎨
+                    </button>
+                    <div id="theme-menu"
+                        class="hidden absolute right-0 top-10 bg-[var(--color-card-bg)] shadow-xl rounded-xl border border-[var(--color-border)] z-50 w-56 py-2">
+                        <p
+                            class="px-4 py-1.5 text-xs font-bold text-[var(--color-text-secondary)] uppercase tracking-wider border-b border-[var(--color-border)] mb-1">
+                            Temas</p>
+                        <button data-theme-value="base"
+                            class="w-full text-left px-3 py-2.5 hover:bg-[var(--color-bg-secondary)] text-sm flex items-center gap-3">
+                            <span class="w-5 h-5 rounded-full bg-blue-500 shadow-sm flex-shrink-0"></span>
+                            <div>
+                                <p class="font-semibold text-[var(--color-text-primary)]">Base</p>
+                                <p class="text-[10px] text-[var(--color-text-secondary)]">Azul cielo &middot;
+                                    Predeterminado</p>
+                            </div>
+                        </button>
+                        <button data-theme-value="forest"
+                            class="w-full text-left px-3 py-2.5 hover:bg-[var(--color-bg-secondary)] text-sm flex items-center gap-3">
+                            <span class="w-5 h-5 rounded-full bg-emerald-500 shadow-sm flex-shrink-0"></span>
+                            <div>
+                                <p class="font-semibold text-[var(--color-text-primary)]">Bosque</p>
+                                <p class="text-[10px] text-[var(--color-text-secondary)]">Verde esmeralda &middot;
+                                    Natural</p>
+                            </div>
+                        </button>
+                        <button data-theme-value="lavender"
+                            class="w-full text-left px-3 py-2.5 hover:bg-[var(--color-bg-secondary)] text-sm flex items-center gap-3">
+                            <span class="w-5 h-5 rounded-full bg-violet-500 shadow-sm flex-shrink-0"></span>
+                            <div>
+                                <p class="font-semibold text-[var(--color-text-primary)]">Lavanda</p>
+                                <p class="text-[10px] text-[var(--color-text-secondary)]">Violeta suave &middot;
+                                    Elegante</p>
+                            </div>
+                        </button>
+                        <button data-theme-value="sunrise"
+                            class="w-full text-left px-3 py-2.5 hover:bg-[var(--color-bg-secondary)] text-sm flex items-center gap-3">
+                            <span class="w-5 h-5 rounded-full bg-orange-400 shadow-sm flex-shrink-0"></span>
+                            <div>
+                                <p class="font-semibold text-[var(--color-text-primary)]">Amanecer</p>
+                                <p class="text-[10px] text-[var(--color-text-secondary)]">Coral c&aacute;lido &middot;
+                                    Energ&eacute;tico</p>
+                            </div>
+                        </button>
+                        <button data-theme-value="slate"
+                            class="w-full text-left px-3 py-2.5 hover:bg-[var(--color-bg-secondary)] text-sm flex items-center gap-3">
+                            <span class="w-5 h-5 rounded-full bg-slate-500 shadow-sm flex-shrink-0"></span>
+                            <div>
+                                <p class="font-semibold text-[var(--color-text-primary)]">Pizarra</p>
+                                <p class="text-[10px] text-[var(--color-text-secondary)]">Gris azulado &middot;
+                                    Profesional</p>
+                            </div>
+                        </button>
+                        <div class="border-t border-[var(--color-border)] my-1 mx-3"></div>
+                        <button data-theme-value="midnight"
+                            class="w-full text-left px-3 py-2.5 hover:bg-[var(--color-bg-secondary)] text-sm flex items-center gap-3">
+                            <span
+                                class="w-5 h-5 rounded-full bg-indigo-400 border-2 border-slate-600 shadow-md flex-shrink-0"></span>
+                            <div>
+                                <p class="font-semibold text-[var(--color-text-primary)]">Medianoche 🌙</p>
+                                <p class="text-[10px] text-[var(--color-text-secondary)]">Oscuro premium &middot; Dark
+                                    mode</p>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- NAVEGACIÓN -->
+        <nav class="bg-[var(--color-card-bg)] px-6 flex gap-1 border-b border-[var(--color-border)] flex-shrink-0">
+            <button data-view="boards" class="nav-tab py-3 px-4 font-semibold text-sm active">
+                📋 Mis Tableros
+            </button>
+            <button data-view="matrices" class="nav-tab py-3 px-4 font-semibold text-sm">
+                🎯 Priorización
+            </button>
+            <button data-view="dashboard" class="nav-tab py-3 px-4 font-semibold text-sm">
+                📊 Estadísticas
+            </button>
+        </nav>
+
+        <!-- CONTENIDO PRINCIPAL -->
+        <main id="main-content" class="flex-grow overflow-hidden relative">
+
+            <!-- ================================================= -->
+            <!-- VISTA: Galería de Tableros -->
+            <!-- ================================================= -->
+            <section id="boards-gallery-view" class="p-6 h-full overflow-y-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 class="text-2xl font-bold text-[var(--color-text-primary)]">Mis Tableros</h2>
+                        <p class="text-sm text-[var(--color-text-secondary)] mt-0.5">Organiza tus proyectos con Kanban
+                        </p>
+                    </div>
+                    <button id="new-board-btn" class="btn-action">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Nuevo Tablero
+                    </button>
+                </div>
+                <div id="boards-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                    <!-- Generado por JS -->
+                </div>
+            </section>
+
+            <!-- ================================================= -->
+            <!-- VISTA: Galería de Matrices -->
+            <!-- ================================================= -->
+            <section id="matrices-gallery-view" class="p-6 h-full overflow-y-auto" style="display:none;">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 class="text-2xl font-bold text-[var(--color-text-primary)]">Priorización Eisenhower</h2>
+                        <p class="text-sm text-[var(--color-text-secondary)] mt-0.5">Toma decisiones con claridad</p>
+                    </div>
+                    <button id="new-matrix-btn" class="btn-action">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Nueva Matriz
+                    </button>
+                </div>
+                <div id="matrices-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                    <!-- Generado por JS -->
+                </div>
+            </section>
+
+            <!-- ================================================= -->
+            <!-- VISTA: Detalle de Tablero (Kanban) -->
+            <!-- ================================================= -->
+            <section id="board-detail-view" class="flex-col h-full overflow-hidden" style="display:none;">
+                <!-- Sub-header del tablero -->
+                <div
+                    class="px-4 py-3 border-b border-[var(--color-border)] flex justify-between items-center bg-[var(--color-card-bg)] flex-shrink-0">
+                    <div class="flex items-center gap-3">
+                        <button id="back-to-boards-btn"
+                            class="p-2 hover:bg-[var(--color-bg-secondary)] rounded-xl transition-colors"
+                            title="Volver">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 19l-7-7 7-7" />
+                            </svg>
+                        </button>
+                        <h2 id="board-title"
+                            class="text-xl font-bold text-[var(--color-text-primary)] truncate max-w-xs"></h2>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="manage-labels-btn"
+                            class="px-3 py-1.5 text-xs font-semibold border border-[var(--color-border)] text-[var(--color-text-secondary)] rounded-lg hover:bg-[var(--color-bg-secondary)] transition-colors flex items-center gap-1.5">
+                            🏷️ Etiquetas
+                        </button>
+                        <button id="manage-members-btn"
+                            class="px-3 py-1.5 text-xs font-semibold border border-[var(--color-border)] text-[var(--color-text-secondary)] rounded-lg hover:bg-[var(--color-bg-secondary)] transition-colors flex items-center gap-1.5">
+                            👥 Miembros
+                        </button>
+                        <button id="add-column-btn" class="btn-action text-sm py-2">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 4v16m8-8H4" />
+                            </svg>
+                            Columna
+                        </button>
+                    </div>
+                </div>
+                <!-- Panel de filtros -->
+                <div
+                    class="px-4 py-2 border-b border-[var(--color-border)] flex gap-3 text-sm bg-[var(--color-bg-secondary)] items-center flex-shrink-0 flex-wrap">
+                    <div class="relative">
+                        <svg class="absolute left-2.5 top-2 w-4 h-4 text-[var(--color-text-secondary)]" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input type="search" id="task-search-input" placeholder="Buscar tarea..."
+                            class="pl-8 pr-4 py-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] text-sm focus:outline-none focus:border-[var(--primary)] w-44">
+                    </div>
+                    <select id="label-filter-select"
+                        class="py-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] text-sm focus:outline-none focus:border-[var(--primary)]">
+                        <option value="">Todas las etiquetas</option>
+                    </select>
+                    <select id="member-filter-select"
+                        class="py-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] text-sm focus:outline-none focus:border-[var(--primary)]">
+                        <option value="">Todos los miembros</option>
+                    </select>
+                </div>
+                <!-- Columnas Kanban -->
+                <div id="board-columns-container"
+                    class="flex-grow flex p-4 gap-4 overflow-x-auto items-start overflow-y-hidden"></div>
+            </section>
+
+            <!-- ================================================= -->
+            <!-- VISTA: Detalle de Matriz (Eisenhower 2×2) -->
+            <!-- ================================================= -->
+            <section id="matrix-detail-view" class="flex-col h-full overflow-hidden" style="display:none;">
+                <!-- Sub-header de la Matriz -->
+                <div
+                    class="px-4 py-3 border-b border-[var(--color-border)] flex items-center gap-3 bg-[var(--color-card-bg)] flex-shrink-0">
+                    <button id="back-to-matrices-btn"
+                        class="p-2 hover:bg-[var(--color-bg-secondary)] rounded-xl transition-colors" title="Volver">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </button>
+                    <h2 id="matrix-title" class="text-xl font-bold text-[var(--color-text-primary)]"></h2>
+                </div>
+                <!-- Cuadrantes -->
+                <div class="flex-grow p-4 grid grid-cols-2 gap-4 overflow-hidden">
+                    <!-- HACER -->
+                    <div id="q-do"
+                        class="quadrant flex flex-col rounded-2xl overflow-hidden border-t-4 border-t-red-500 border border-[var(--color-border)] bg-[var(--color-card-bg)] shadow-sm">
+                        <div class="flex justify-between items-center p-4">
+                            <div>
+                                <span class="text-xs font-bold uppercase tracking-wider text-red-500">① Urgente +
+                                    Importante</span>
+                                <h3 class="font-bold text-red-500 text-lg">Hacer Ahora</h3>
+                            </div>
+                            <button
+                                class="add-matrix-task-btn p-2 text-red-500 hover:bg-red-500/10 rounded-xl text-sm font-medium transition-colors">+
+                                Añadir</button>
+                        </div>
+                        <div class="tasks flex-grow overflow-y-auto px-3 pb-3 space-y-2" data-quadrant="do"></div>
+                    </div>
+                    <!-- PLANIFICAR -->
+                    <div id="q-plan"
+                        class="quadrant flex flex-col rounded-2xl overflow-hidden border-t-4 border-t-blue-500 border border-[var(--color-border)] bg-[var(--color-card-bg)] shadow-sm">
+                        <div class="flex justify-between items-center p-4">
+                            <div>
+                                <span class="text-xs font-bold uppercase tracking-wider text-blue-500">② Importante, No
+                                    Urgente</span>
+                                <h3 class="font-bold text-blue-500 text-lg">Planificar</h3>
+                            </div>
+                            <button
+                                class="add-matrix-task-btn p-2 text-blue-500 hover:bg-blue-500/10 rounded-xl text-sm font-medium transition-colors">+
+                                Añadir</button>
+                        </div>
+                        <div class="tasks flex-grow overflow-y-auto px-3 pb-3 space-y-2" data-quadrant="plan"></div>
+                    </div>
+                    <!-- DELEGAR -->
+                    <div id="q-delegate"
+                        class="quadrant flex flex-col rounded-2xl overflow-hidden border-t-4 border-t-amber-500 border border-[var(--color-border)] bg-[var(--color-card-bg)] shadow-sm">
+                        <div class="flex justify-between items-center p-4">
+                            <div>
+                                <span class="text-xs font-bold uppercase tracking-wider text-amber-500">③ Urgente, No
+                                    Importante</span>
+                                <h3 class="font-bold text-amber-500 text-lg">Delegar</h3>
+                            </div>
+                            <button
+                                class="add-matrix-task-btn p-2 text-amber-500 hover:bg-amber-500/10 rounded-xl text-sm font-medium transition-colors">+
+                                Añadir</button>
+                        </div>
+                        <div class="tasks flex-grow overflow-y-auto px-3 pb-3 space-y-2" data-quadrant="delegate"></div>
+                    </div>
+                    <!-- ELIMINAR -->
+                    <div id="q-eliminate"
+                        class="quadrant flex flex-col rounded-2xl overflow-hidden border-t-4 border-t-slate-400 border border-[var(--color-border)] bg-[var(--color-card-bg)] shadow-sm">
+                        <div class="flex justify-between items-center p-4">
+                            <div>
+                                <span class="text-xs font-bold uppercase tracking-wider text-slate-500">④ No Urgente, No
+                                    Importante</span>
+                                <h3 class="font-bold text-slate-500 text-lg">Eliminar</h3>
+                            </div>
+                            <button
+                                class="add-matrix-task-btn p-2 text-slate-500 hover:bg-slate-500/10 rounded-xl text-sm font-medium transition-colors">+
+                                Añadir</button>
+                        </div>
+                        <div class="tasks flex-grow overflow-y-auto px-3 pb-3 space-y-2" data-quadrant="eliminate">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================================================= -->
+            <!-- VISTA: Dashboard de Estadísticas -->
+            <!-- ================================================= -->
+            <section id="dashboard-view" class="p-6 h-full overflow-y-auto" style="display:none;">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-[var(--color-text-primary)]">Estadísticas</h2>
+                    <p class="text-sm text-[var(--color-text-secondary)] mt-0.5">Indicadores de productividad del equipo
+                    </p>
+                </div>
+
+                <!-- KPIs -->
+                <div id="dashboard-stats" class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                    <!-- Generado por JS -->
+                </div>
+
+                <!-- Layout Inferior: Carga y Actividad -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Carga por Miembro -->
+                    <div class="bg-[var(--color-card-bg)] rounded-2xl border border-[var(--color-border)] p-6">
+                        <h3 class="font-bold text-lg mb-4 text-[var(--color-text-primary)]">Carga del Equipo</h3>
+                        <div id="member-load-chart" class="space-y-4">
+                            <!-- Generado por JS -->
+                        </div>
+                    </div>
+
+                    <!-- Historial de Actividades -->
+                    <div
+                        class="bg-[var(--color-card-bg)] rounded-2xl border border-[var(--color-border)] p-6 flex flex-col h-[400px]">
+                        <h3 class="font-bold text-lg mb-4 text-[var(--color-text-primary)] flex items-center gap-2">
+                            <span>⏱️</span> Historial Reciente
+                        </h3>
+                        <div id="activity-log-container" class="space-y-4 overflow-y-auto pr-2 flex-grow">
+                            <!-- JS inyectará el historial aquí -->
+                            <p class="text-sm text-[var(--color-text-secondary)] text-center py-4">Cargando...</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- MODAL CONTAINER (Glassmorphism) -->
+    <!-- ========================================================= -->
+    <div id="modal-container"
+        class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] items-center justify-center hidden">
+        <div id="modal-content" class="bg-[var(--color-card-bg)] rounded-2xl shadow-2xl p-6 w-full max-w-lg mx-4
+                    transform transition-all duration-200 scale-95 opacity-0 border border-[var(--color-border)]
+                    max-h-[90vh] flex flex-col">
+            <!-- Header del Modal -->
+            <div
+                class="flex justify-between items-center mb-5 pb-4 border-b border-[var(--color-border)] flex-shrink-0">
+                <h3 id="modal-title" class="text-xl font-bold text-[var(--color-text-primary)]"></h3>
+                <button id="modal-close-btn"
+                    class="p-2 hover:bg-[var(--color-bg-secondary)] rounded-xl transition-all hover:rotate-90 duration-200">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <!-- Cuerpo del Modal -->
+            <div id="modal-body" class="overflow-y-auto flex-grow"></div>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- TOAST DE NOTIFICACIONES -->
+    <!-- ========================================================= -->
+    <div id="assist-toast" class="fixed bottom-6 right-6 px-5 py-3 bg-slate-800 text-white rounded-xl shadow-2xl z-[9999]
+                transition-all duration-300 transform translate-y-20 opacity-0 pointer-events-none
+                text-sm font-medium max-w-xs">
+    </div>
+
+    <!-- TASK CARD TEMPLATE (requerido por UIComponents.createTaskCard) -->
+    <template id="task-card-template">
+        <div class="task-card relative" style="cursor:pointer">
+            <!-- Drag handle izquierdo -->
+            <div class="drag-handle" title="Arrastrar">&#xE2BF;</div>
+
+            <!-- Labels container -->
+            <div class="task-labels-container flex flex-wrap gap-1 mb-1.5"></div>
+
+            <!-- Título de la tarea -->
+            <p class="task-title text-sm font-semibold text-[var(--color-text-primary)] leading-snug mb-2"></p>
+
+            <!-- Meta row: fecha + avatar -->
+            <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2 text-[11px] text-[var(--color-text-secondary)] flex-wrap">
+                    <span class="task-due-date hidden flex items-center gap-1"></span>
+                    <span class="task-created-at hidden flex items-center gap-1 opacity-50"></span>
+                </div>
+                <div
+                    class="task-assignee-avatar hidden w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-white shadow-sm">
+                </div>
+            </div>
+
+            <!-- Botones de acción (CSS .task-actions muestra al hover) -->
+            <div class="task-actions">
+                <button class="export-to-matrix-btn" title="Enviar a Matriz">&#x26A1;</button>
+                <button class="delete-task-btn" title="Eliminar tarea">&#x1F5D1;&#xFE0F;</button>
+            </div>
+        </div>
+    </template>
+
+</body>
+
+</html>
