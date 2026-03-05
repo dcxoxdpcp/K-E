@@ -135,7 +135,11 @@ const App = {
         Object.assign(state, newState);
 
         // 3. Restaurar la identidad del usuario y su pantalla
-        if (localSession.currentUser) state.currentUser = localSession.currentUser;
+        if (localSession.currentUser) {
+            // Repoblar currentUser directo de la nube para obtener su último 'theme'
+            const cloudUser = state.users.find(u => u.id === localSession.currentUser.id);
+            state.currentUser = cloudUser ? { ...cloudUser } : localSession.currentUser;
+        }
 
         // Evitar restaurar un ID de pantalla si ese tablero/matriz fue borrado en la nube
         if (state.boards.some(b => b.id === localSession.currentBoardId)) {
@@ -179,7 +183,7 @@ const App = {
     },
 
     applyTheme() {
-        const theme = state.settings?.theme || 'ocean';
+        const theme = state.currentUser?.theme || state.settings?.theme || 'ocean';
         document.documentElement.setAttribute('data-theme', theme);
     },
 
@@ -1370,7 +1374,13 @@ const App = {
             opt.addEventListener('click', (e) => {
                 e.preventDefault();
                 const theme = opt.dataset.themeValue;
-                state.settings.theme = theme;
+                if (state.currentUser) {
+                    state.currentUser.theme = theme;
+                    const u = state.users.find(user => user.id === state.currentUser.id);
+                    if (u) u.theme = theme;
+                } else {
+                    state.settings.theme = theme;
+                }
                 this.applyTheme();
                 this.save();
                 themeMenu.classList.add('hidden');
