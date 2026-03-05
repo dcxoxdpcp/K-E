@@ -120,13 +120,43 @@ const App = {
     // =============================================================
     // INICIO DE APP
     // =============================================================
+    applyRemoteState(newState) {
+        if (!newState) return;
+
+        // 1. Salvar sesión local e identidad
+        const localSession = {
+            currentUser: state.currentUser ? { ...state.currentUser } : null,
+            currentBoardId: state.currentBoardId,
+            currentMatrixId: state.currentMatrixId,
+            settings: state.settings ? JSON.parse(JSON.stringify(state.settings)) : {}
+        };
+
+        // 2. Sobrescribir estado completo con los datos de Supabase (La nube gana)
+        Object.assign(state, newState);
+
+        // 3. Restaurar la identidad del usuario y su pantalla
+        if (localSession.currentUser) state.currentUser = localSession.currentUser;
+
+        // Evitar restaurar un ID de pantalla si ese tablero/matriz fue borrado en la nube
+        if (state.boards.some(b => b.id === localSession.currentBoardId)) {
+            state.currentBoardId = localSession.currentBoardId;
+        }
+        if (state.matrices.some(m => m.id === localSession.currentMatrixId)) {
+            state.currentMatrixId = localSession.currentMatrixId;
+        }
+
+        if (Object.keys(localSession.settings).length > 0) {
+            state.settings = localSession.settings;
+        }
+    },
+
     async startApp() {
         // Sincronización con Supabase (no bloquea si falla)
         try {
             const result = await SyncService.init();
-            if (result && result.data) {
-                Object.assign(state, result.data);
-                console.log("☁️ Estado sincronizado con Supabase");
+            if (result) {
+                this.applyRemoteState(result);
+                console.log("☁️ Estado inicial descargado y aplicado desde Supabase");
             }
 
             SyncService.trackPresence(state.currentUser, (presenceState) => {
@@ -134,9 +164,9 @@ const App = {
             });
 
             SyncService.onUpdate((newState) => {
-                Object.assign(state, newState);
+                this.applyRemoteState(newState);
                 this.refresh();
-                showToast("🔄 Sincronizado con la nube");
+                showToast("🔄 Modificaciones de otros usuarios recibidas");
             });
         } catch (e) {
             console.warn("⚠️ Supabase no disponible, modo offline:", e.message);
